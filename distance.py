@@ -14,8 +14,8 @@ def distance(lat1, lon1, lat2, lon2):
 max_distance = 30
 
 # Change the names of the CSVs to match your files
-rehab_csv = "rehabs.csv"
-hospital_csv = "hospitals.csv"
+rehab_csv = "./csvs/rehabs.csv"
+hospital_csv = "./csvs/hospitals.csv"
 output_csv = f"rehabs_within_{max_distance}.csv"
 
 # Load the rehab data

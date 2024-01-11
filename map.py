@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.express as px
+import plotly.offline
 from urllib.request import urlopen
 import json
 
@@ -16,8 +17,18 @@ counties["features"][0]
 
 # Change the names of the CSVs to match your files
 population_csv = "./csvs/population.csv"
-hospital_csv = "./csvs/hospitals.csv"
+hospital_csv = "./csvs/rehab_30.csv"
 rehab_csv = "./csvs/rehabs_within_30.csv"
+
+# Used for creating labels
+data = dict(type="scattergeo", locationmode="USA-states", mode="markers")
+
+layout = dict(
+    geo=dict(
+        scope="usa",
+        projection=dict(type="albers usa"),
+    ),
+)
 
 # Load the population data
 # Change the names input to match the column names in your CSV
@@ -58,11 +69,14 @@ fig = px.choropleth(
     geojson=counties,
     locations="fips",
     color="Density (pop/sq mi)",
+    # color="Mean Age",
     color_continuous_scale="Viridis",
     range_color=(0, 300),
+    # range_color=(0, 50),
     scope="usa",
     labels={
         "Density (pop/sq mi)": "Density (pop/sq mi)",
+        # "Age": "Mean Age",
     },
     hover_data={
         "Land Area (sq mi)",
@@ -97,6 +111,13 @@ hf = pd.read_csv(
     dtype={"id": str},
 )
 
+# Used for creating labels
+# fig_h = data.copy()
+# fig_h["lon"] = hf["longitude"]
+# fig_h["lat"] = hf["latitude"]
+# fig_h["marker"] = dict(color="#ff0000")
+# fig_h["name"] = "Hospitals Without a Cardiac Rehabilitation Center Within 30 Miles"
+
 # Create the plot
 # Change hover_data and labels as needed
 fig_h = px.scatter_geo(
@@ -130,14 +151,21 @@ r3 = pd.read_csv(
         "latitude",
         "longitude",
         "State",
-        "Hospital beds within 30 mi",
-        "Rehabs within 30 mi",
-        "Hospitals within 30 mi",
+        "Hospital Beds Within 30 mi",
+        "Rehabs Within 30 mi",
+        "Hospitals Within 30 mi",
     ],
 )
 
 # Use if you want to calculate patients by splitting with other rehabs
-r3["Patients"] = r3["Hospital beds within 30 mi"] / r3["Rehabs within 30 mi"]
+r3["Estimated Bed Size"] = r3["Hospital Beds Within 30 mi"] / r3["Rehabs Within 30 mi"]
+
+# Used for creating labels
+# rehabs = data.copy()
+# rehabs["lon"] = r3["longitude"]
+# rehabs["lat"] = r3["latitude"]
+# rehabs["marker"] = dict(color="#0000ff")
+# rehabs["name"] = "Cardiac Rehabilitation Centers"
 
 # Create the plot
 # Change hover_data and labels as needed
@@ -148,15 +176,19 @@ fig_px = px.scatter_geo(
     hover_name="Name",
     hover_data=[
         "Address",
-        "Patients",
-        "Rehabs within 30 mi",
-        "Hospital beds within 30 mi",
-        "Hospitals within 30 mi",
+        "Estimated Bed Size",
+        "Rehabs Within 30 mi",
+        "Hospital Beds Within 30 mi",
+        "Hospitals Within 30 mi",
     ],
     title="Filtered Hospital Locations",
     scope="usa",
     color_discrete_sequence=["#0000ff"],
 )
+
+# Used for creating labels
+# fig_px = dict(data=[fig_h, rehabs], layout=layout)
+# plotly.offline.plot(fig_px, filename="rehabs.html")
 
 # Adds the Hospital data points to the Population map
 fig.add_trace(fig_h.data[0])
@@ -167,7 +199,6 @@ for i, frame in enumerate(fig.frames):
 fig.add_trace(fig_px.data[0])
 for i, frame in enumerate(fig.frames):
     fig.frames[i].data += (fig_px.frames[i].data[0],)
-
 
 fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 fig.show()
