@@ -2,10 +2,11 @@ name: Create Asana Ticket for Dependabot Alerts
 
 on:
   schedule:
-    - cron: "16 17 * * *" # Runs daily at midnight UTC
+    - cron: "0 0 * * *" # Runs every day at midnight UTC
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
-  check-alerts:
+  create-asana-task:
     runs-on: ubuntu-latest
     permissions:
       security-events: read
@@ -13,45 +14,42 @@ jobs:
       - name: Fetch Dependabot Alerts
         id: fetch-alerts
         run: |
-          # Get alerts in JSON format
-          alerts=$(gh api /repos/${{ github.repository }}/dependabot/alerts --jq '[.[] | select(.state == "open")]')
-          echo "alerts=$alerts" >> $GITHUB_OUTPUT
+          echo "Fetching open Dependabot alerts..."
+          ALERTS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/dependabot/alerts?state=open")
 
-      - name: Set output
-        id: alerts-output
+          echo "$ALERTS" > alerts.json
+          COUNT=$(jq length alerts.json)
+          echo "Found $COUNT open alerts."
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No new alerts found. Exiting."
+            exit 0
+          fi
+
+      - name: Create Asana Tasks
+        if: success()
         run: |
-          echo "count=$(echo '${{ steps.fetch-alerts.outputs.alerts }}' | jq length)" >> $GITHUB_OUTPUT
+          echo "Creating Asana tasks..."
+          jq -c '.[]' alerts.json | while read -r alert; do
+            PACKAGE=$(echo "$alert" | jq -r '.dependency.package.name')
+            SEVERITY=$(echo "$alert" | jq -r '.security_advisory.severity')
+            SUMMARY=$(echo "$alert" | jq -r '.security_advisory.summary')
+            ALERT_URL=$(echo "$alert" | jq -r '.html_url')
 
-    outputs:
-      alerts: ${{ steps.fetch-alerts.outputs.alerts }}
-      alert-count: ${{ steps.alerts-output.outputs.count }}
+            DESCRIPTION="**Package:** $PACKAGE\n**Severity:** $SEVERITY\n**Summary:** $SUMMARY\n**Alert URL:** [Link]($ALERT_URL)"
 
-  create-asana-task:
-    runs-on: ubuntu-latest
-    needs: check-alerts
-    if: ${{ needs.check-alerts.outputs.alert-count > 0 }}
-    permissions:
-      security-events: read
-    steps:
-      - name: Process Alerts
-        env:
-          ALERTS_JSON: ${{ needs.check-alerts.outputs.alerts }}
-        run: |
-          echo "$ALERTS_JSON" > alerts.json
-          # Add logic to process alerts.json here
-      - name: Create Asana Task
-        uses: honeycombio/gha-create-asana-task@main
-        with:
-          #asana-secret: ${{ secrets.ASANA_PAT }}
-          asana-secret: 2/1207429301186131/1209370901760232:60206bd5140e2000ae39a1f75f21a90f
-          #asana-workspace-id: ${{ secrets.ASANA_WORKSPACE_ID }}
-          asana-workspace-id: 1209370921355179
-          #asana-project-id: ${{ secrets.ASANA_PROJECT_ID }}
-          asana-project-id: 1209370898900553
-          #asana-section-id: ${{ secrets.ASANA_SECTION_ID }}
-          asana-section-id: 1209370921355183
-          asana-task-name: "Dependabot Alert: ${{ fromJson(needs.check-alerts.outputs.alerts)[0].security_advisory.summary }}"
-          asana-task-description: |
-            **Package:** ${{ fromJson(needs.check-alerts.outputs.alerts)[0].dependency.package.name }}
-            **Severity:** ${{ fromJson(needs.check-alerts.outputs.alerts)[0].security_advisory.severity }}
-            **Alert URL:** ${{ fromJson(needs.check-alerts.outputs.alerts)[0].html_url }}
+            curl -X POST "https://app.asana.com/api/1.0/tasks" \
+              -H "Authorization: Bearer 2/1207429301186131/1209370901760232:60206bd5140e2000ae39a1f75f21a90f" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "data": {
+                  "name": "Dependabot Alert: '"$PACKAGE"'",
+                  "notes": "'"$DESCRIPTION"'",
+                  "workspace": "1209370921355179",
+                  "projects": ["1209370898900553"],
+                  "memberships": [{"project": "1209370898900553", "section": "1209370921355183"}]
+                }
+              }'
+          done
