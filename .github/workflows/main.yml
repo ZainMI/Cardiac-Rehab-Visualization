@@ -1,7 +1,7 @@
 name: Create Asana Ticket for Dependabot Alerts
 
 on:
-  alert:
+  security_advisory:
     types: [created]
 
 jobs:
