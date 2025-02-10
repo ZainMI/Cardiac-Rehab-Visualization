@@ -1,15 +1,44 @@
 name: Create Asana Ticket for Dependabot Alerts
 
 on:
-  repository_advisory:
-    types: [created]
+  schedule:
+    - cron: "16 17 * * *" # Runs daily at midnight UTC
 
 jobs:
-  create-asana-task:
+  check-alerts:
     runs-on: ubuntu-latest
     permissions:
       security-events: read
     steps:
+      - name: Fetch Dependabot Alerts
+        id: fetch-alerts
+        run: |
+          # Get alerts in JSON format
+          alerts=$(gh api /repos/${{ github.repository }}/dependabot/alerts --jq '[.[] | select(.state == "open")]')
+          echo "alerts=$alerts" >> $GITHUB_OUTPUT
+
+      - name: Set output
+        id: alerts-output
+        run: |
+          echo "count=$(echo '${{ steps.fetch-alerts.outputs.alerts }}' | jq length)" >> $GITHUB_OUTPUT
+
+    outputs:
+      alerts: ${{ steps.fetch-alerts.outputs.alerts }}
+      alert-count: ${{ steps.alerts-output.outputs.count }}
+
+  create-asana-task:
+    runs-on: ubuntu-latest
+    needs: check-alerts
+    if: ${{ needs.check-alerts.outputs.alert-count > 0 }}
+    permissions:
+      security-events: read
+    steps:
+      - name: Process Alerts
+        env:
+          ALERTS_JSON: ${{ needs.check-alerts.outputs.alerts }}
+        run: |
+          echo "$ALERTS_JSON" > alerts.json
+          # Add logic to process alerts.json here
       - name: Create Asana Task
         uses: honeycombio/gha-create-asana-task@main
         with:
@@ -19,11 +48,10 @@ jobs:
           asana-workspace-id: 1209370921355179
           #asana-project-id: ${{ secrets.ASANA_PROJECT_ID }}
           asana-project-id: 1209370898900553
-          asana-task-name: "Dependabot Alert: ${{ github.event.alert.affected_package }}"
           #asana-section-id: ${{ secrets.ASANA_SECTION_ID }}
           asana-section-id: 1209370921355183
+          asana-task-name: "Dependabot Alert: ${{ fromJson(needs.check-alerts.outputs.alerts)[0].security_advisory.summary }}"
           asana-task-description: |
-            **Package:** ${{ github.event.alert.affected_package }}
-            **Severity:** ${{ github.event.alert.security_advisory.severity }}
-            **Summary:** ${{ github.event.alert.security_advisory.summary }}
-            **Alert URL:** [${{ github.event.alert.html_url }}](${{ github.event.alert.html_url }})
+            **Package:** ${{ fromJson(needs.check-alerts.outputs.alerts)[0].dependency.package.name }}
+            **Severity:** ${{ fromJson(needs.check-alerts.outputs.alerts)[0].security_advisory.severity }}
+            **Alert URL:** ${{ fromJson(needs.check-alerts.outputs.alerts)[0].html_url }}
