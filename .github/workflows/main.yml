@@ -1,10 +1,8 @@
 name: Create Asana Ticket for Dependabot Alerts
 
 on:
-  workflow_run:
-    workflows: ["Dependabot Alert"]
-    types:
-      - completed
+  alert:
+    types: [created]
 
 jobs:
   create-asana-task:
