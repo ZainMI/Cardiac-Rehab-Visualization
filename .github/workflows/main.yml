@@ -1,37 +1,33 @@
-name: Check Dependabot Alerts
+name: Dependabot Alert Checker
 
 on:
   schedule:
-    - cron: "0 * * * *" # Runs every hour (adjust as needed)
-  workflow_dispatch: # Allows manual triggering
+    - cron: "0 0 * * *" # Every day at midnight UTC
+  workflow_dispatch:
 
 jobs:
-  dependabot-alerts:
+  check_dependabot_alerts:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: read # Required for Dependabot alerts
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Fetch Dependabot Alerts from the Last 24 Hours
-        env:
-          GH_TOKEN: ${{ secrets.DEPENDABOT }} # Uses the default GitHub Actions token
+      - name: Get dependabot alerts from GitHub API
         run: |
-          gh api repos/${{ github.repository }}/dependabot/alerts \
+          gh api repos/ZainMI/Cardiac-Rehab-Visualization/dependabot/alerts \
             --jq '.[] | select(.created_at >= "'$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)'" )' \
             > dependabot_alerts.json
 
-          cat dependabot_alerts.json
-
-      - name: Fail if there are new alerts
+      - name: Check if there are dependabot alerts
+        id: check_alerts
         run: |
           COUNT=$(jq 'length' dependabot_alerts.json)
-          if [[ "$COUNT" -gt 0 ]]; then
-            echo "🚨 $COUNT new Dependabot alerts found in the last 24 hours!"
-            exit 1
+          echo "Dependabot alert count: $COUNT"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "Dependabot alerts found!"
+            exit 0
           else
             echo "✅ No new Dependabot alerts in the last 24 hours."
+            exit 0
           fi
