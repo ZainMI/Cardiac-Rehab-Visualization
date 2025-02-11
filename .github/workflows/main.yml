@@ -26,7 +26,7 @@ jobs:
           ASANA_TOKEN: ${{ secrets.ASANA_PAT }}
           ASANA_WORKSPACE_ID: ${{ secrets.ASANA_WORKSPACE_ID }}
           ASANA_PROJECT_ID: ${{ secrets.ASANA_PROJECT_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPENDABOT: ${{ secrets.DEPENDABOT }}
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.repository }}
         run: |
