@@ -28,7 +28,6 @@ def get_new_alerts():
     """Fetch new Dependabot alerts since last run with pagination"""
     last_run_time = get_last_run()
 
-    owner = os.environ.get("REPO_OWNER")
     repo = os.environ.get("REPO_NAME")
     token = os.environ.get("DEPENDABOT")
 
@@ -44,7 +43,7 @@ def get_new_alerts():
     }
 
     new_alerts = []
-    url = f"https://api.github.com/repos/{owner}/{repo}/dependabot/alerts"
+    url = f"https://api.github.com/repos/{repo}/dependabot/alerts"
 
     while url:
         response = requests.get(url, headers=headers, params={"state": "open"})

@@ -27,7 +27,6 @@ jobs:
           ASANA_WORKSPACE_ID: ${{ secrets.ASANA_WORKSPACE_ID }}
           ASANA_PROJECT_ID: ${{ secrets.ASANA_PROJECT_ID }}
           DEPENDABOT: ${{ secrets.DEPENDABOT }}
-          REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.repository }}
         run: |
           python scripts/dependabot_to_asana.py
