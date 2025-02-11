@@ -1,38 +1,35 @@
-name: Dependabot Alert Checker
-
+name: Check Recent Dependabot Alerts
 on:
   schedule:
-    - cron: "0 0 * * *" # Every day at midnight UTC
-  workflow_dispatch:
+    - cron: "0 0 * * *" # Runs daily at midnight UTC
+  workflow_dispatch: # Optional: Allow manual triggers
+
+permissions:
+  security-events: read # Required to access Dependabot alerts
 
 jobs:
-  check_dependabot_alerts:
+  check-alerts:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: read
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Get dependabot alerts from GitHub API
+      - name: Fetch Dependabot Alerts
+        id: fetch-alerts
         env:
-          GH_TOKEN: ${{ secrets.DEPENDABOT}} # Explicitly use the GITHUB_TOKEN
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh api repos/ZainMI/Cardiac-Rehab-Visualization/dependabot/alerts \
-            --jq '.[] | select(.created_at >= "'$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)'" )' \
-            > dependabot_alerts.json
+          # Fetch alerts created in the last 24 hours
+          ALERTS_JSON=$(gh api --paginate "/repos/$GH_REPO/dependabot/alerts?state=open" \
+            --jq "$(cat <<EOF
+              map(select(
+                (.created_at | fromdateiso8601) > (now - 86400)
+              ))
+            EOF")
 
-      - name: Check if there are dependabot alerts
-        id: check_alerts
+          # Output the result for subsequent steps
+          echo "alerts_json=$ALERTS_JSON" >> $GITHUB_OUTPUT
+
+      - name: Process Alerts
+        if: steps.fetch-alerts.outputs.alerts_json != '[]'
         run: |
-          COUNT=$(jq 'length' dependabot_alerts.json)
-          echo "Dependabot alert count: $COUNT"
-          if [ "$COUNT" -gt 0 ]; then
-            echo "Dependabot alerts found!"
-            exit 0
-          else
-            echo "✅ No new Dependabot alerts in the last 24 hours."
-            exit 0
-          fi
+          echo "New Dependabot alerts in the last 24 hours:"
+          echo "${{ steps.fetch-alerts.outputs.alerts_json }}"
+          # Add custom logic here (e.g., send a Slack/Email notification)
