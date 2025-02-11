@@ -31,9 +31,6 @@ def get_new_alerts():
     repo = os.environ.get("REPO_NAME")
     token = os.environ.get("DEPENDABOT")
 
-    print(owner)
-    print(repo)
-
     if not token:
         raise RuntimeError("Missing DEPENDABOT_TOKEN environment variable")
 
