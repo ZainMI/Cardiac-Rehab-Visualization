@@ -68,10 +68,9 @@ def get_new_alerts():
 def create_asana_ticket(alert):
     """Create an Asana task for a Dependabot alert"""
     asana_token = os.environ.get("ASANA_PAT")
-    asana_workspace = os.environ.get("ASANA_WORKSPACE_ID")
     asana_project = os.environ.get("ASANA_PROJECT_ID")
 
-    if not all([asana_token, asana_workspace, asana_project]):
+    if not all([asana_token, asana_project]):
         raise RuntimeError("Missing Asana environment variables")
 
     advisory = alert.get("security_advisory", {})
@@ -98,9 +97,8 @@ def create_asana_ticket(alert):
     payload = {
         "name": task_name,
         "notes": task_notes,
-        "workspace": asana_workspace,
         "projects": [asana_project],
-        "due_on": None,  # Remove or set actual due date if needed
+        "due_on": None,
     }
 
     response = requests.post(url, json=payload, headers=headers)
