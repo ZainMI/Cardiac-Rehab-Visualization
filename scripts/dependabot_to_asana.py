@@ -5,7 +5,7 @@ import requests
 
 def get_24_hours_ago():
     """Get the current time minus 24 hours"""
-    return datetime.datetime.now() - datetime.timedelta(hours=24)
+    return datetime.datetime.now() - datetime.timedelta(hours=1)
 
 
 def get_new_alerts():
