@@ -1,35 +1,31 @@
 name: Check Recent Dependabot Alerts
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs daily at midnight UTC
-  workflow_dispatch: # Optional: Allow manual triggers
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 permissions:
-  security-events: read # Required to access Dependabot alerts
+  security-events: read
 
 jobs:
   check-alerts:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch Dependabot Alerts
+      - name: Fetch Alerts
         id: fetch-alerts
         env:
           GH_REPO: ${{ github.repository }}
         run: |
-          # Fetch alerts created in the last 24 hours
           ALERTS_JSON=$(gh api --paginate "/repos/$GH_REPO/dependabot/alerts?state=open" \
-            --jq "$(cat <<EOF
+            --jq "$(cat <<'EOF'
               map(select(
                 (.created_at | fromdateiso8601) > (now - 86400)
               ))
-            EOF")
-
-          # Output the result for subsequent steps
+          EOF
+          )")
           echo "alerts_json=$ALERTS_JSON" >> $GITHUB_OUTPUT
 
       - name: Process Alerts
         if: steps.fetch-alerts.outputs.alerts_json != '[]'
         run: |
-          echo "New Dependabot alerts in the last 24 hours:"
-          echo "${{ steps.fetch-alerts.outputs.alerts_json }}"
-          # Add custom logic here (e.g., send a Slack/Email notification)
+          echo "Found alerts: ${{ steps.fetch-alerts.outputs.alerts_json }}"
