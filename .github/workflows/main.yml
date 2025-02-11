@@ -1,11 +1,11 @@
 name: Check Dependabot Alerts
 on:
   schedule:
-    - cron: "0 0 * * *" # Daily check
+    - cron: "0 0 * * *" # Runs daily at midnight
   workflow_dispatch:
 
 permissions:
-  security-events: read # Required for Dependabot alerts
+  security-events: read # Required for Dependabot access
 
 jobs:
   check-alerts:
@@ -15,19 +15,16 @@ jobs:
         id: fetch-alerts
         env:
           GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.DEPENDABOT }} # Critical for auth
+          GH_TOKEN: ${{ github.token }} # Authentication
         run: |
+          # Single-line jq filter avoids heredoc issues
           ALERTS_JSON=$(gh api --paginate "/repos/$GH_REPO/dependabot/alerts?state=open" \
-            --jq "$(cat <<'EOF'
-              map(select(
-                (.created_at | fromdateiso8601) > (now - 86400)
-              )
-            EOF
-            )")
+            --jq 'map(select((.created_at | fromdateiso8601) > (now - 86400))')
+
           echo "alerts_json=$ALERTS_JSON" >> $GITHUB_OUTPUT
 
-      - name: Notify on New Alerts
+      - name: Process Alerts
         if: steps.fetch-alerts.outputs.alerts_json != '[]'
         run: |
-          echo "New alerts found! ${{ steps.fetch-alerts.outputs.alerts_json }}"
-          # Add your notification logic here (Slack/Email/etc.)
+          echo "New alerts: ${{ steps.fetch-alerts.outputs.alerts_json }}"
+          # Add notifications (Slack/Email/etc.) here
