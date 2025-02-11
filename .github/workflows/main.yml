@@ -23,7 +23,7 @@ jobs:
 
       - name: Run script to process Dependabot alerts
         env:
-          ASANA_TOKEN: ${{ secrets.ASANA_PAT }}
+          ASANA_PAT: ${{ secrets.ASANA_PAT }}
           ASANA_WORKSPACE_ID: ${{ secrets.ASANA_WORKSPACE_ID }}
           ASANA_PROJECT_ID: ${{ secrets.ASANA_PROJECT_ID }}
           DEPENDABOT: ${{ secrets.DEPENDABOT }}
