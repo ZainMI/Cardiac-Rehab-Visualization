@@ -1,55 +1,37 @@
-name: Create Asana Ticket for Dependabot Alerts
+name: Check Dependabot Alerts
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs every day at midnight UTC
+    - cron: "0 * * * *" # Runs every hour (adjust as needed)
   workflow_dispatch: # Allows manual triggering
 
 jobs:
-  create-asana-task:
+  dependabot-alerts:
     runs-on: ubuntu-latest
     permissions:
-      security-events: read
+      contents: read
+      security-events: read # Required for Dependabot alerts
+
     steps:
-      - name: Fetch Dependabot Alerts
-        id: fetch-alerts
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Dependabot Alerts from the Last 24 Hours
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Uses the default GitHub Actions token
         run: |
-          echo "Fetching open Dependabot alerts..."
-          ALERTS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/dependabot/alerts?state=open")
+          gh api repos/${{ github.repository }}/dependabot/alerts \
+            --jq '.[] | select(.created_at >= "'$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)'" )' \
+            > dependabot_alerts.json
 
-          echo "$ALERTS" > alerts.json
-          COUNT=$(jq length alerts.json)
-          echo "Found $COUNT open alerts."
+          cat dependabot_alerts.json
 
-          if [ "$COUNT" -eq 0 ]; then
-            echo "No new alerts found. Exiting."
-            exit 0
+      - name: Fail if there are new alerts
+        run: |
+          COUNT=$(jq 'length' dependabot_alerts.json)
+          if [[ "$COUNT" -gt 0 ]]; then
+            echo "🚨 $COUNT new Dependabot alerts found in the last 24 hours!"
+            exit 1
+          else
+            echo "✅ No new Dependabot alerts in the last 24 hours."
           fi
-
-      - name: Create Asana Tasks
-        if: success()
-        run: |
-          echo "Creating Asana tasks..."
-          jq -c '.[]' alerts.json | while read -r alert; do
-            PACKAGE=$(echo "$alert" | jq -r '.dependency.package.name')
-            SEVERITY=$(echo "$alert" | jq -r '.security_advisory.severity')
-            SUMMARY=$(echo "$alert" | jq -r '.security_advisory.summary')
-            ALERT_URL=$(echo "$alert" | jq -r '.html_url')
-
-            DESCRIPTION="**Package:** $PACKAGE\n**Severity:** $SEVERITY\n**Summary:** $SUMMARY\n**Alert URL:** [Link]($ALERT_URL)"
-
-            curl -X POST "https://app.asana.com/api/1.0/tasks" \
-              -H "Authorization: Bearer 2/1207429301186131/1209370901760232:60206bd5140e2000ae39a1f75f21a90f" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "data": {
-                  "name": "Dependabot Alert: '"$PACKAGE"'",
-                  "notes": "'"$DESCRIPTION"'",
-                  "workspace": "1209370921355179",
-                  "projects": ["1209370898900553"],
-                  "memberships": [{"project": "1209370898900553", "section": "1209370921355183"}]
-                }
-              }'
-          done
