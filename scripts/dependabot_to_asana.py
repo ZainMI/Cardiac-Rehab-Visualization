@@ -3,30 +3,14 @@ import os
 import requests
 
 
-def save_time():
-    """Save the current UTC time as the last run timestamp"""
-    current_time = datetime.datetime.utcnow()
-    time_str = current_time.strftime("%Y-%m-%d %H:%M:%S")
-    with open("last_run.txt", "w") as f:
-        f.write(time_str)
-
-
-def get_last_run():
-    """Get the last run time from file or return minimum datetime"""
-    try:
-        with open("last_run.txt", "r") as f:
-            last_run_str = f.read().strip()
-        return datetime.datetime.strptime(last_run_str, "%Y-%m-%d %H:%M:%S")
-    except FileNotFoundError:
-        # Return a time far in the past for first run
-        return datetime.datetime.min
-    except ValueError as e:
-        raise RuntimeError(f"Corrupted last_run.txt file: {str(e)}")
+def get_24_hours_ago():
+    """Get the current time minus 24 hours"""
+    return datetime.datetime.now() - datetime.timedelta(hours=24)
 
 
 def get_new_alerts():
     """Fetch new Dependabot alerts since last run with pagination"""
-    last_run_time = get_last_run()
+    last_run_time = get_24_hours_ago()
 
     repo = os.environ.get("REPO_NAME")
     token = os.environ.get("DEPENDABOT")
@@ -125,7 +109,6 @@ def main():
         else:
             print("No new alerts found")
 
-        save_time()
     except Exception as e:
         print(f"Error: {str(e)}")
         exit(1)
