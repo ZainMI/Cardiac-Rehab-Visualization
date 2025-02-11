@@ -19,8 +19,7 @@ jobs:
           python-version: "3.x" # Adjust version if needed
 
       - name: Install Requests
-          with:
-            run: pip install requests
+        run: pip install requests
 
       - name: Run script to process Dependabot alerts
         env:
