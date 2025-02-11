@@ -15,7 +15,7 @@ jobs:
         id: fetch-alerts
         env:
           GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }} # Authentication
+          GH_TOKEN: ${{ secrets.DEPENDABOT}} # Authentication
         run: |
           # Single-line jq filter avoids heredoc issues
           ALERTS_JSON=$(gh api --paginate "/repos/$GH_REPO/dependabot/alerts?state=open" \
