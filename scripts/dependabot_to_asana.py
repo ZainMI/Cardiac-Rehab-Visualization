@@ -95,10 +95,12 @@ def create_asana_ticket(alert):
     url = "https://app.asana.com/api/1.0/tasks"
     headers = {"Authorization": f"Bearer {asana_token}"}
     payload = {
-        "name": task_name,
-        "notes": task_notes,
-        "projects": [asana_project],
-        "due_on": None,
+        "data": {
+            "name": task_name,
+            "notes": task_notes,
+            "projects": [str(asana_project)],  # Ensure it's a list of strings
+            "due_on": None,
+        }
     }
 
     response = requests.post(url, json=payload, headers=headers)
